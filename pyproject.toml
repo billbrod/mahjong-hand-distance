@@ -55,8 +55,11 @@ extend-select = [
   "FURB",     # refurb
   "PYI",      # flake8-pyi
 ]
-typing-modules = ["mypackage._compat.typing"]
+ignore = [
+  "PLR2004",  # Magic value used in comparison
+]
 isort.required-imports = ["from __future__ import annotations"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["T20"]
+"__init__.py" = ["F401"]

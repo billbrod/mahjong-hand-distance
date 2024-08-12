@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import numpy as np
+
 from . import images
 
 SUIT_MAPPER = {"c": "crack", "b": "boo", "d": "dot"}
@@ -15,6 +17,18 @@ FNAME_MAPPER = {
     "west": "Shaa",
     "east": "Ton",
 }
+DATA_SUIT_MAPPER = {"crack": 0, "boo": 1, "dot": 2, "honor": 3}
+DATA_SUIT_MAPPER_REV = {v: k for k, v in DATA_SUIT_MAPPER.items()}
+DATA_IDX_MAPPER = {
+    "north": 0,
+    "south": 1,
+    "east": 2,
+    "west": 3,
+    "red": 4,
+    "green": 5,
+    "white": 6,
+}
+DATA_IDX_MAPPER_REV = {v: k for k, v in DATA_IDX_MAPPER.items()}
 
 
 class Tile:
@@ -32,11 +46,13 @@ class Tile:
     """
 
     def __init__(self, tile: str):
+        self._data = np.zeros((4, 9))
         if len(tile) == 2:
             self.value = int(tile[0])
             self.suit = SUIT_MAPPER[tile[1]]
             self.name = f"{self.value} {self.suit}"
             img_fname = f"{FNAME_MAPPER[self.suit]}{self.value}"
+            self._data[DATA_SUIT_MAPPER[self.suit], self.value - 1] = 1
         else:
             self.value = tile
             self.suit = "honor"
@@ -48,6 +64,7 @@ class Tile:
                 msg = f"Unsure what to do with tile {tile}!"
                 raise ValueError(msg)
             img_fname = FNAME_MAPPER[self.value]
+            self._data[DATA_SUIT_MAPPER[self.suit], DATA_IDX_MAPPER[self.value]] = 1
         self._str_rep = tile
         self._svg = images.get(img_fname)
 
@@ -59,3 +76,11 @@ class Tile:
 
     def _repr_svg_(self):
         return self._svg
+
+    @classmethod
+    def from_data(cls, data: np.ndarray):
+        suit, val = np.where(data)
+        if suit == 3:
+            return cls.__init__(DATA_IDX_MAPPER_REV[val[0]])
+        suit = DATA_SUIT_MAPPER_REV[suit[0]]
+        return cls(f"{val[0]+1}{suit[0]}")

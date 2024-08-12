@@ -27,7 +27,7 @@ def get(item_name: str):
         for f in resources.files("mahjong_hand_distance.images").iterdir()
         if f.name == f"{item_name}.svg"
     ]
-    if len(fhs) == 1:
+    if len(fhs) != 1:
         msg = f"Expected exactly one file for {item_name}, but found {len(fhs)}."
         raise ValueError(msg)
     with fhs[0].open() as f:

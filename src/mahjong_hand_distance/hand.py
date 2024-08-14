@@ -6,7 +6,15 @@ from .tile import Tile
 
 
 class Hand:
-    """ """
+    """Full hand of mahjong tiles.
+
+    Parameters
+    ----------
+    tiles :
+        List of tiles, can contain either Tile objects or their string
+        representations. Must be of length 13 or 14.
+
+    """
 
     def __init__(self, tiles: list[Tile | str]):
         if len(tiles) not in [13, 14]:
@@ -19,15 +27,29 @@ class Hand:
     def _repr_html_(self):
         return self._svg
 
-    def __sub__(self, other):
+    def __sub__(self, other: Hand) -> HandDiff:
         return HandDiff(self._data - other._data)
 
-    def distance(self, other):
+    def distance(self, other: Hand) -> float:
         return (self - other).distance
 
 
 class HandDiff:
-    """ """
+    """Difference between two hands.
+
+    Represents the difference between two hands, enables the computation of
+    distance (number of tiles to draw to get from one hand to another).
+
+    Shouldn't be initialized directly, but rather by subtracting two Hand
+    objects.
+
+    Parameters
+    ----------
+    data :
+        Data representation of tiles, a 3d array of shape (n_hands, 4, 9),
+        where suits are indexed on the second dimension and value on the third.
+
+    """
 
     def __init__(self, data: np.ndarray):
         self._data = data
@@ -45,7 +67,7 @@ class HandDiff:
             self._svg = (
                 "<div><h3>Draw: </h3>"
                 + "".join([t._svg for t in self.draw_tiles])
-                + "<h3>Discard:</h3>"
+                + "</div><div><h3>Discard:</h3>"
                 + "".join([t._svg for t in self.discard_tiles])
                 + "</div>"
             )

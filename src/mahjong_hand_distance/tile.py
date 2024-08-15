@@ -20,13 +20,13 @@ FNAME_MAPPER = {
 DATA_SUIT_MAPPER = {"crack": 0, "boo": 1, "dot": 2, "honor": 3}
 DATA_SUIT_MAPPER_REV = {v: k for k, v in DATA_SUIT_MAPPER.items()}
 DATA_IDX_MAPPER = {
-    "north": 0,
+    "east": 0,
     "south": 1,
-    "east": 2,
-    "west": 3,
-    "red": 4,
+    "west": 2,
+    "north": 3,
+    "white": 4,
     "green": 5,
-    "white": 6,
+    "red": 6,
 }
 DATA_IDX_MAPPER_REV = {v: k for k, v in DATA_IDX_MAPPER.items()}
 
@@ -49,6 +49,12 @@ class Tile:
         self._data = np.zeros((4, 9))
         if len(tile) == 2:
             self.value = int(tile[0])
+            if self.value < 1 or self.value > 9:
+                msg = "Value must lie between 1 and 9!"
+                raise ValueError(msg)
+            if tile[1] not in ["b", "c", "d"]:
+                msg = "Suit must be one of c, b, or d!"
+                raise ValueError(msg)
             self.suit = SUIT_MAPPER[tile[1]]
             self.name = f"{self.value} {self.suit}"
             img_fname = f"{FNAME_MAPPER[self.suit]}{self.value}"
@@ -76,6 +82,9 @@ class Tile:
 
     def _repr_svg_(self):
         return self._svg
+
+    def __eq__(self, other):
+        return (self._data == other._data).all()
 
     @classmethod
     def from_data(cls, data: np.ndarray):

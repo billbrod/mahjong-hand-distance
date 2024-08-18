@@ -86,6 +86,14 @@ class Tile:
     def __eq__(self, other):
         return (self._data == other._data).all()
 
+    def __mul__(self, other):
+        if isinstance(other, int):
+            return other * [self]
+        msg = f"unsupported operand type(s) for *: {type(other)} and 'Tile'"
+        raise TypeError(msg)
+
+    __rmul__ = __mul__
+
     @classmethod
     def from_data(cls, data: np.ndarray):
         return cls.from_int(np.where(data.flatten())[0][0])

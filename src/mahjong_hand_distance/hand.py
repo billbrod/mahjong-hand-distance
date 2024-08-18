@@ -29,13 +29,24 @@ class Hand:
             msg = f"A hand has 13 or 14 tiles, not {len(tiles)}!"
             raise ValueError(msg)
         self.tiles = [t if isinstance(t, Tile) else Tile(t) for t in tiles]
-        self._data = np.expand_dims(np.sum([t._data for t in self.tiles], 0), 0)
+        self._data = np.sum([t._data for t in self.tiles], 0)
+
+    def __str__(self):
+        return "[" + ",".join([str(t) for t in self.tiles]) + "]"
+
+    def __repr__(self):
+        return self.__str__()
 
     def _repr_html_(self):
         return "<div>" + "".join([t._svg for t in self.tiles]) + "</div>"
 
-    def __sub__(self, other: Hand) -> HandDiff:
-        return HandDiff(self._data - other._data)
+    def __sub__(self, other: Hand | Hands) -> HandDiff | HandsDiff:
+        if isinstance(other, Hand):
+            return HandDiff(self._data - other._data)
+        if isinstance(other, Hands):
+            return HandsDiff(self._data - other._data)
+        msg = f"can't take difference with type {type(other)}"
+        raise ValueError(msg)
 
     def distance(self, other: Hand) -> float:
         """Compute the distance between two hands."""
@@ -93,6 +104,24 @@ class Hand:
         return result
 
 
+class Hands:
+    """Multiple hands"""
+
+    def __init__(self, *hands: Hand):
+        self.hands = hands
+        self._data = np.stack([h._data for h in hands])
+
+    def _repr_html_(self):
+        diff_svg = [
+            f"<h2>Hand {h+1}</h2>{hand._repr_html_()}"
+            for h, hand in enumerate(self.hands)
+        ]
+        return f"<div>{''.join(diff_svg)}</div>"
+
+    def __getitem__(self, hand_no):
+        return self.hands[hand_no]
+
+
 class HandDiff:
     """Difference between two hands.
 
@@ -105,24 +134,29 @@ class HandDiff:
     Parameters
     ----------
     data :
-        Data representation of tiles, a 3d array of shape (n_hands, 4, 9),
-        where suits are indexed on the second dimension and value on the third.
+        Data representation of tiles, a 2d array of shape (4, 9), where suits are
+        indexed on the first dimension and value on the second.
 
     """
 
     def __init__(self, data: np.ndarray):
-        self._data = data
+        if data.ndim != 2:
+            msg = "data must be 2d!"
+            raise ValueError(msg)
+        self._data = data.astype(int)
         self.draw_tiles = []
         self.discard_tiles = []
-        idx = np.where(data)
-        for _, s, v in zip(*idx, strict=False):
-            tile_data = np.zeros((4, 9))
-            tile_data[s, v] = 1
-            if data[0, s, v] == 1:
-                self.draw_tiles.append(Tile.from_data(tile_data))
-            elif data[0, s, v] == -1:
-                self.discard_tiles.append(Tile.from_data(tile_data))
-        if len(idx[0]):
+        flat_data = self._data.flatten()
+        idx = np.where(flat_data)[0]
+        if len(idx) == 0:
+            self._svg = "<div><h3>Identical hands</h3></div>"
+        else:
+            for i in idx:
+                tiles = abs(flat_data[i]) * Tile.from_int(i)
+                if flat_data[i] < 0:
+                    self.draw_tiles.extend(tiles)
+                else:
+                    self.discard_tiles.extend(tiles)
             self._svg = (
                 "<div><h3>Draw: </h3>"
                 + "".join([t._svg for t in self.draw_tiles])
@@ -130,8 +164,6 @@ class HandDiff:
                 + "".join([t._svg for t in self.discard_tiles])
                 + "</div>"
             )
-        else:
-            self._svg = ""
 
     def _repr_html_(self):
         return self._svg
@@ -139,3 +171,11 @@ class HandDiff:
     @property
     def distance(self):
         return self._data.clip(0).sum((-1, -2))
+
+
+class HandsDiff(Hands, HandDiff):
+    """Represent difference of hands"""
+
+    def __init__(self, data: np.ndarray):
+        self._data = data.astype(int)
+        self.hands = [HandDiff(d) for d in self._data]

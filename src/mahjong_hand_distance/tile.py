@@ -88,8 +88,27 @@ class Tile:
 
     @classmethod
     def from_data(cls, data: np.ndarray):
-        suit, val = np.where(data)
+        return cls.from_int(np.where(data.flatten())[0][0])
+
+    @classmethod
+    def from_int(cls, index: int):
+        """Initialize from integer index
+
+        index should be an integer between 0 and 33 (inclusive):
+
+        - 0-8: 1 through 9 crack
+        - 9-17: 1 through 9 boo
+        - 18-26: 1 through 9 dot
+        - 27-33: east wind, south wind, west wind, north wind, white dragon, green
+                 dragon, red dragon
+
+        """
+        if index < 0 or index > 33:
+            msg = "index must lie between 0 and 33, inclusive"
+            raise ValueError(msg)
+        suit = index // 9
+        val = index % 9
         if suit == 3:
-            return cls.__init__(DATA_IDX_MAPPER_REV[val[0]])
-        suit = DATA_SUIT_MAPPER_REV[suit[0]]
-        return cls(f"{val[0]+1}{suit[0]}")
+            return cls(DATA_IDX_MAPPER_REV[val])
+        suit = DATA_SUIT_MAPPER_REV[suit]
+        return cls(f"{val+1}{suit[0]}")

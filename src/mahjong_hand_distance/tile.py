@@ -45,7 +45,35 @@ class Tile:
 
     """
 
-    def __init__(self, tile: str):
+    def __init__(self, tile: str | int | np.ndarray):
+        if isinstance(tile, str):
+            self._from_str(tile)
+        elif isinstance(tile, int):
+            self._from_int(tile)
+        elif isinstance(tile, np.ndarray):
+            self._from_data(tile)
+
+    def __str__(self):
+        return self._str_rep
+
+    def __repr__(self):
+        return self.__str__()
+
+    def _repr_svg_(self):
+        return self._svg
+
+    def __eq__(self, other):
+        return (self._data == other._data).all()
+
+    def __mul__(self, other):
+        if isinstance(other, int):
+            return other * [self]
+        msg = f"unsupported operand type(s) for *: {type(other)} and 'Tile'"
+        raise TypeError(msg)
+
+    __rmul__ = __mul__
+
+    def _from_str(self, tile: str):
         self._data = np.zeros((4, 9))
         if len(tile) == 2:
             self.value = int(tile[0])
@@ -74,32 +102,10 @@ class Tile:
         self._str_rep = tile
         self._svg = images.get(img_fname)
 
-    def __str__(self):
-        return self._str_rep
+    def _from_data(self, data: np.ndarray):
+        self._from_int(np.where(data.flatten())[0][0])
 
-    def __repr__(self):
-        return self.__str__()
-
-    def _repr_svg_(self):
-        return self._svg
-
-    def __eq__(self, other):
-        return (self._data == other._data).all()
-
-    def __mul__(self, other):
-        if isinstance(other, int):
-            return other * [self]
-        msg = f"unsupported operand type(s) for *: {type(other)} and 'Tile'"
-        raise TypeError(msg)
-
-    __rmul__ = __mul__
-
-    @classmethod
-    def from_data(cls, data: np.ndarray):
-        return cls.from_int(np.where(data.flatten())[0][0])
-
-    @classmethod
-    def from_int(cls, index: int):
+    def _from_int(self, index: int):
         """Initialize from integer index
 
         index should be an integer between 0 and 33 (inclusive):
@@ -117,6 +123,7 @@ class Tile:
         suit = index // 9
         val = index % 9
         if suit == 3:
-            return cls(DATA_IDX_MAPPER_REV[val])
-        suit = DATA_SUIT_MAPPER_REV[suit]
-        return cls(f"{val+1}{suit[0]}")
+            self._from_str(DATA_IDX_MAPPER_REV[val])
+        else:
+            suit = DATA_SUIT_MAPPER_REV[suit]
+            self._from_str(f"{val+1}{suit[0]}")

@@ -52,7 +52,7 @@ class Hand:
         """Compute the distance between two hands."""
         return (self - other).distance
 
-    def draw(self, draw_tile: Tile | str, discard_tile: Tile | str) -> Hand:
+    def draw(self, draw_tile: Tile | str | int, discard_tile: Tile | str | int) -> Hand:
         """Draw and discard tile."""
         if not isinstance(draw_tile, Tile):
             draw_tile = Tile(draw_tile)
@@ -152,7 +152,7 @@ class HandDiff:
             self._svg = "<div><h3>Identical hands</h3></div>"
         else:
             for i in idx:
-                tiles = abs(flat_data[i]) * Tile.from_int(i)
+                tiles = abs(flat_data[i]) * Tile(i)
                 if flat_data[i] < 0:
                     self.draw_tiles.extend(tiles)
                 else:

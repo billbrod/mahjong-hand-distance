@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import itertools
+
 import numpy as np
 from mahjong.hand_calculating.hand import HandCalculator
 from mahjong.hand_calculating.hand_config import HandConfig
 from mahjong.tile import TilesConverter
 
-from .tile import DATA_IDX_MAPPER, FNAME_MAPPER, Tile
+from .tile import DATA_IDX_MAPPER, FNAME_MAPPER, VALID_DATA, Tile
 
 CALCULATOR = HandCalculator()
 
@@ -31,14 +33,19 @@ class Hand:
         self.tiles = [t if isinstance(t, Tile) else Tile(t) for t in tiles]
         self._data = np.sum([t._data for t in self.tiles], 0)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "[" + ",".join([str(t) for t in self.tiles]) + "]"
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()
 
-    def _repr_html_(self):
+    def _repr_html_(self) -> str:
         return "<div>" + "".join([t._svg for t in self.tiles]) + "</div>"
+
+    def __add__(self, other: Hand | Hands) -> Hands:
+        if isinstance(other, Hand):
+            return Hands(self, other)
+        return other + self
 
     def __sub__(self, other: Hand | Hands) -> HandDiff | HandsDiff:
         if isinstance(other, Hand):
@@ -48,7 +55,7 @@ class Hand:
         msg = f"can't take difference with type {type(other)}"
         raise ValueError(msg)
 
-    def distance(self, other: Hand) -> float:
+    def distance(self, other: Hand) -> int | np.ndarray:
         """Compute the distance between two hands."""
         return (self - other).distance
 
@@ -61,16 +68,18 @@ class Hand:
         if not any(t == discard_tile for t in self.tiles):
             msg = f"discard_tile {discard_tile} not found in hand!"
             raise ValueError(msg)
-        self.tiles.remove(discard_tile)
-        self.tiles.append(draw_tile)
-        self._data = self._data + draw_tile._data - discard_tile._data
-        return self
+        # don't edit this in place
+        tiles = list(self.tiles)
+        tiles.remove(discard_tile)
+        tiles.append(draw_tile)
+        # return tiles
+        return Hand(tiles)
 
-    def __getitem__(self, tile_no):
+    def __getitem__(self, tile_no) -> Tile:
         return self.tiles[tile_no]
 
     @staticmethod
-    def _convert_to_136_array(tiles: list[Tile]):
+    def _convert_to_136_array(tiles: list[Tile]) -> list[int]:
         tiles_dict = {"honors": "", "man": "", "pin": "", "sou": ""}
         for t in tiles:
             suit = FNAME_MAPPER[t.suit].lower()
@@ -81,7 +90,7 @@ class Hand:
             tiles_dict[suit] += str(val)
         return TilesConverter.string_to_136_array(**tiles_dict)
 
-    def score(self, self_drawn: bool = False):
+    def score(self, self_drawn: bool = False) -> dict:
         """Score hand."""
         if not self_drawn:
             self.is_closed = False
@@ -103,13 +112,45 @@ class Hand:
             result["fu_details"] = []
         return result
 
+    def neighboring_hands(self, distance: int = 1) -> Hands:
+        """Figure out how the hands that are ``distance`` number of draws away
+
+        *WARNING*: Right now this is very inefficient, so that ``distance=1`` takes 90
+        msec and ``distance=2`` takes 90 sec, and thus ``distance=3`` probably takes 25
+        hours.
+
+        """
+        poss_draws = np.bitwise_and(VALID_DATA, self._data < 4)
+        poss_draws = np.where(poss_draws.flatten())[0]
+        poss_discards = np.where((self._data > 0).flatten())[0]
+        hands = []
+        for draw, discard in itertools.product(poss_draws, poss_discards):
+            hands.append(self.draw(draw, discard))
+        neighboring_hands = Hands(*hands)
+        if distance == 1:
+            return neighboring_hands
+        return Hands.concat(
+            [h.neighboring_hands(distance - 1) for h in neighboring_hands]
+        )
+
 
 class Hands:
     """Multiple hands"""
 
-    def __init__(self, *hands: Hand):
+    def __init__(self, *hands: Hand | Hands):
         self.hands = hands
         self._data = np.stack([h._data for h in hands])
+
+    def __add__(self, other: Hand | Hands) -> Hands:
+        if isinstance(other, Hand):
+            return Hands(*self.hands, other)
+        return Hands(*self.hands, *other.hands)
+
+    def __str__(self) -> str:
+        return "[" + "\n".join([str(t) for t in self.hands]) + "]"
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
     def _repr_html_(self):
         diff_svg = [
@@ -119,7 +160,19 @@ class Hands:
         return f"<div>{''.join(diff_svg)}</div>"
 
     def __getitem__(self, hand_no):
-        return self.hands[hand_no]
+        to_return = self.hands[hand_no]
+        if isinstance(to_return, Hand):
+            return to_return
+        return Hands(*to_return)
+
+    def __len__(self):
+        return self._data.shape[0]
+
+    @classmethod
+    def concat(cls, hands: list[Hands]) -> Hands:
+        if len(hands) == 2:
+            return hands[0] + hands[1]
+        return hands[0] + cls.concat(hands[1:])
 
 
 class HandDiff:

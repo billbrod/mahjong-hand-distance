@@ -29,6 +29,8 @@ DATA_IDX_MAPPER = {
     "red": 6,
 }
 DATA_IDX_MAPPER_REV = {v: k for k, v in DATA_IDX_MAPPER.items()}
+VALID_DATA = np.ones((4, 9), dtype=bool)
+VALID_DATA[3, 7:] = False
 
 
 class Tile:
@@ -59,10 +61,16 @@ class Tile:
     def __init__(self, tile: str | int | np.ndarray):
         if isinstance(tile, str):
             self._from_str(tile)
-        elif isinstance(tile, int):
-            self._from_int(tile)
         elif isinstance(tile, np.ndarray):
             self._from_data(tile)
+        elif isinstance(tile, int):
+            self._from_int(tile)
+        else:
+            try:
+                self._from_int(tile.item())
+            except AttributeError:
+                msg = f"don't know how to initialize Tile with type {type(tile)}"
+                raise ValueError(msg) from None
 
     def __str__(self):
         return self._str_rep

@@ -37,11 +37,22 @@ class Tile:
     Arguments
     ----------
     tile :
-        String representation of the tile. If a numbered tile, format is "#S",
-        where # is a number between 1 and 9, and S is a one-letter code giving
-        the suit: c (for crack/characters), d (for dots), and b (for boo /
-        bamboo). If a wind, should be just the direction. If a dragon, should
-        be just the color.
+        Representation of the tile.
+
+        - If a string: If a numbered tile, format is "#S", where # is a number between 1
+          and 9, and S is a one-letter code giving the suit: c (for crack/characters), d
+          (for dots), and b (for boo / bamboo). If a wind, should be just the direction.
+          If a dragon, should be just the color.
+
+        - If an int:
+
+          - 0-8: 1 through 9 crack
+          - 9-17: 1 through 9 boo
+          - 18-26: 1 through 9 dot
+          - 27-33: east wind, south wind, west wind, north wind, white dragon, green
+                   dragon, red dragon
+
+        - If an array:
 
     """
 
@@ -103,6 +114,12 @@ class Tile:
         self._svg = images.get(img_fname)
 
     def _from_data(self, data: np.ndarray):
+        if data.sum() != 1:
+            msg = "In order to initialize from array, data must have a single 1 value!"
+            raise ValueError(msg)
+        if data.shape != (4, 9):
+            msg = "In order to initialize from array, data must have shape (4, 9)!"
+            raise ValueError(msg)
         self._from_int(np.where(data.flatten())[0][0])
 
     def _from_int(self, index: int):

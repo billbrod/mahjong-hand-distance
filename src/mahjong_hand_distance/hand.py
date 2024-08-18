@@ -76,9 +76,21 @@ class Hand:
             self.is_closed = False
         winning_tile = self._convert_to_136_array([self.tiles[-1]])[0]
         tiles = self._convert_to_136_array(self.tiles)
-        return CALCULATOR.estimate_hand_value(
+        result = CALCULATOR.estimate_hand_value(
             tiles, winning_tile, config=HandConfig(is_tsumo=self_drawn)
         )
+        result = {
+            k: getattr(result, k) for k in ["han", "fu", "cost", "yaku", "fu_details"]
+        }
+        result["score"] = result.pop("cost")
+        for k in ["han", "fu", "score"]:
+            if result[k] is None:
+                result[k] = 0
+        if result["yaku"] is None:
+            result["yaku"] = 0
+        if result["fu_details"] is None:
+            result["fu_details"] = []
+        return result
 
 
 class HandDiff:

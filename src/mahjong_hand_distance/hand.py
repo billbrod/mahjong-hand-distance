@@ -65,12 +65,14 @@ class Hand:
             draw_tile = Tile(draw_tile)
         if not isinstance(discard_tile, Tile):
             discard_tile = Tile(discard_tile)
-        if not any(t == discard_tile for t in self.tiles):
-            msg = f"discard_tile {discard_tile} not found in hand!"
-            raise ValueError(msg)
         # don't edit this in place
         tiles = list(self.tiles)
-        tiles.remove(discard_tile)
+        try:
+            discard_idx = tiles.index(discard_tile)
+        except ValueError:
+            msg = f"discard_tile {discard_tile} not found in hand!"
+            raise ValueError(msg) from None
+        tiles.pop(discard_idx)
         tiles.append(draw_tile)
         # return tiles
         return Hand(tiles)
@@ -115,8 +117,8 @@ class Hand:
     def neighboring_hands(self, distance: int = 1) -> Hands:
         """Figure out how the hands that are ``distance`` number of draws away
 
-        *WARNING*: Right now this is very inefficient, so that ``distance=1`` takes 90
-        msec and ``distance=2`` takes 90 sec, and thus ``distance=3`` probably takes 25
+        *WARNING*: Right now this is very inefficient, so that ``distance=1`` takes 13
+        msec and ``distance=2`` takes 48 sec, and thus ``distance=3`` probably takes
         hours.
 
         """

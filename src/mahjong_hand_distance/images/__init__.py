@@ -2,6 +2,18 @@ from __future__ import annotations
 
 from importlib import resources
 
+__all__ = ["get"]
+
+
+def __dir__() -> list[str]:
+    return __all__
+
+
+IMAGES = {}
+for f in resources.files(__name__).iterdir():
+    if f.is_file():
+        IMAGES[f.stem] = f.open().read()
+
 
 def get(item_name: str):
     """Retrieve the svg contents of the file that matches the given item name
@@ -22,13 +34,8 @@ def get(item_name: str):
         If no files or more than one file match the `item_name`.
 
     """
-    fhs = [
-        f
-        for f in resources.files("mahjong_hand_distance.images").iterdir()
-        if f.name == f"{item_name}.svg"
-    ]
-    if len(fhs) != 1:
-        msg = f"Expected exactly one file for {item_name}, but found {len(fhs)}."
-        raise ValueError(msg)
-    with fhs[0].open() as f:
-        return f.read()
+    try:
+        return IMAGES[item_name]
+    except KeyError:
+        msg = f"No svg named {item_name}!"
+        raise ValueError(msg) from None

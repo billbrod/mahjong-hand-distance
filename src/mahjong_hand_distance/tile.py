@@ -32,6 +32,10 @@ DATA_IDX_MAPPER_REV = {v: k for k, v in DATA_IDX_MAPPER.items()}
 VALID_DATA = np.ones((4, 9), dtype=bool)
 VALID_DATA[3, 7:] = False
 
+POSS_TILES = np.zeros((36, 36))
+POSS_TILES[*np.diag_indices(34)] = 1
+POSS_TILES = POSS_TILES.reshape((36, 4, 9))
+
 
 class Tile:
     """Class for representing mahjong tile.

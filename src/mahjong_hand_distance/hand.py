@@ -7,7 +7,7 @@ from mahjong.hand_calculating.hand import HandCalculator
 from mahjong.hand_calculating.hand_config import HandConfig
 from mahjong.tile import TilesConverter
 
-from .tile import DATA_IDX_MAPPER, FNAME_MAPPER, VALID_DATA, Tile
+from .tile import DATA_IDX_MAPPER, FNAME_MAPPER, POSS_TILES, VALID_DATA, Tile
 
 CALCULATOR = HandCalculator()
 
@@ -25,13 +25,24 @@ class Hand:
 
     """
 
-    def __init__(self, tiles: list[Tile | str], is_closed: bool = True):
+    def __init__(self, tiles: list[Tile | str] | np.ndarray, is_closed: bool = True):
         self.is_closed = is_closed
-        if len(tiles) not in [13, 14]:
-            msg = f"A hand has 13 or 14 tiles, not {len(tiles)}!"
-            raise ValueError(msg)
-        self.tiles = [t if isinstance(t, Tile) else Tile(t) for t in tiles]
-        self._data = np.sum([t._data for t in self.tiles], 0)
+        if isinstance(tiles, list):
+            if len(tiles) not in [13, 14]:
+                msg = f"A hand has 13 or 14 tiles, not {len(tiles)}!"
+                raise ValueError(msg)
+            self.tiles = [t if isinstance(t, Tile) else Tile(t) for t in tiles]
+            self._data = np.sum([t._data for t in self.tiles], 0)
+        else:
+            if tiles.sum() not in [13, 14]:
+                msg = f"A hand has 13 or 14 tiles, not {tiles.sum()}!"
+                raise ValueError(msg)
+            if tiles.shape != (4, 9):
+                msg = "In order to initialize from array, data must have shape (4, 9)!"
+                raise ValueError(msg)
+            self._data = tiles
+            tiles = np.where(tiles.flatten())[0]
+            self.tiles = [Tile(t) for t in tiles]
 
     def __str__(self) -> str:
         return "[" + ",".join([str(t) for t in self.tiles]) + "]"
@@ -133,6 +144,59 @@ class Hand:
             return neighboring_hands
         return Hands.concat(
             [h.neighboring_hands(distance - 1) for h in neighboring_hands]
+        )
+
+    def _neighboring_hands_data_alt(
+        self, data: np.ndarray, distance: int = 1
+    ) -> np.ndarray:
+        """ """
+        poss_draws = np.bitwise_and(VALID_DATA, data < 4)
+        poss_discards = data > 0
+
+        poss_draws = np.expand_dims(POSS_TILES[poss_draws.flatten()], 1)
+        poss_discards = np.expand_dims(POSS_TILES[poss_discards.flatten()], 0)
+
+        poss_changes = poss_draws - poss_discards
+
+        new_data = data + poss_changes
+        new_data = new_data.reshape((-1, 4, 9))
+        if distance == 1:
+            return new_data
+        return self._neighboring_hands_data(new_data, distance - 1)
+
+    def _neighboring_hands_data(
+        self, data: np.ndarray, distance: int = 1
+    ) -> np.ndarray:
+        """ """
+        poss_draws = np.bitwise_and(VALID_DATA, data < 4)
+        poss_discards = data > 0
+
+        poss_draws = np.expand_dims(POSS_TILES[poss_draws.flatten()], 1)
+        poss_discards = np.expand_dims(POSS_TILES[poss_discards.flatten()], 0)
+
+        poss_changes = poss_draws - poss_discards
+
+        new_data = data + poss_changes
+        new_data = new_data.reshape((-1, 4, 9))
+        if distance == 1:
+            return new_data
+        return self._neighboring_hands_data(new_data, distance - 1)
+
+    def neighboring_hands_alt(
+        self, distance: int = 1, previous_hands: np.ndarray | None = None
+    ) -> Hands:
+        """ """
+        if previous_hands is None:
+            # empty array for concatenating
+            previous_hands = np.zeros((0, 4, 9))
+        new_data = self._neighboring_hands_data(self._data, distance)
+        new_data = new_data[new_data.any((-1, -2))]
+        new_data = np.unique(np.concatenate((new_data, previous_hands), axis=0), axis=0)
+        new_hands = Hands(*[Hand(h) for h in new_data])
+        if distance == 1:
+            return new_hands
+        return Hands.concat(
+            [h.neighboring_hands_alt(distance - 1, new_data) for h in new_hands]
         )
 
 

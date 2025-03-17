@@ -76,9 +76,13 @@ class Hand:
             self.is_closed = False
         winning_tile = self._convert_to_136_array([self.tiles[-1]])[0]
         tiles = self._convert_to_136_array(self.tiles)
+        # CONVERT THIS TO DICTIONARY
         return CALCULATOR.estimate_hand_value(
             tiles, winning_tile, config=HandConfig(is_tsumo=self_drawn)
         )
+
+    # TO FIND NEARBY YAKU, CHECK ALL HANDS THAT CAN BE REACHED BY CHANGING ONE
+    # TILE, ETC
 
 
 class HandDiff:

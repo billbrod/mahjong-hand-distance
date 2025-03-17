@@ -45,6 +45,8 @@ class Tile:
 
     """
 
+    # ADD FROM_INT METHOD
+
     def __init__(self, tile: str):
         self._data = np.zeros((4, 9))
         if len(tile) == 2:

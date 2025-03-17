@@ -29,6 +29,12 @@ DATA_IDX_MAPPER = {
     "red": 6,
 }
 DATA_IDX_MAPPER_REV = {v: k for k, v in DATA_IDX_MAPPER.items()}
+VALID_DATA = np.ones((4, 9), dtype=bool)
+VALID_DATA[3, 7:] = False
+
+POSS_TILES = np.zeros((36, 36))
+POSS_TILES[*np.diag_indices(34)] = 1
+POSS_TILES = POSS_TILES.reshape((36, 4, 9))
 
 
 class Tile:
@@ -37,17 +43,60 @@ class Tile:
     Arguments
     ----------
     tile :
-        String representation of the tile. If a numbered tile, format is "#S",
-        where # is a number between 1 and 9, and S is a one-letter code giving
-        the suit: c (for crack/characters), d (for dots), and b (for boo /
-        bamboo). If a wind, should be just the direction. If a dragon, should
-        be just the color.
+        Representation of the tile.
+
+        - If a string: If a numbered tile, format is "#S", where # is a number between 1
+          and 9, and S is a one-letter code giving the suit: c (for crack/characters), d
+          (for dots), and b (for boo / bamboo). If a wind, should be just the direction.
+          If a dragon, should be just the color.
+
+        - If an int:
+
+          - 0-8: 1 through 9 crack
+          - 9-17: 1 through 9 boo
+          - 18-26: 1 through 9 dot
+          - 27-33: east wind, south wind, west wind, north wind, white dragon, green
+                   dragon, red dragon
+
+        - If an array:
 
     """
 
-    # ADD FROM_INT METHOD
+    def __init__(self, tile: str | int | np.ndarray):
+        if isinstance(tile, str):
+            self._from_str(tile)
+        elif isinstance(tile, np.ndarray):
+            self._from_data(tile)
+        elif isinstance(tile, int):
+            self._from_int(tile)
+        else:
+            try:
+                self._from_int(tile.item())
+            except AttributeError:
+                msg = f"don't know how to initialize Tile with type {type(tile)}"
+                raise ValueError(msg) from None
 
-    def __init__(self, tile: str):
+    def __str__(self):
+        return self._str_rep
+
+    def __repr__(self):
+        return self.__str__()
+
+    def _repr_svg_(self):
+        return self._svg
+
+    def __eq__(self, other):
+        return (self._data == other._data).all()
+
+    def __mul__(self, other):
+        if isinstance(other, int):
+            return other * [self]
+        msg = f"unsupported operand type(s) for *: {type(other)} and 'Tile'"
+        raise TypeError(msg)
+
+    __rmul__ = __mul__
+
+    def _from_str(self, tile: str):
         self._data = np.zeros((4, 9))
         if len(tile) == 2:
             self.value = int(tile[0])
@@ -76,22 +125,34 @@ class Tile:
         self._str_rep = tile
         self._svg = images.get(img_fname)
 
-    def __str__(self):
-        return self._str_rep
+    def _from_data(self, data: np.ndarray):
+        if data.sum() != 1:
+            msg = "In order to initialize from array, data must have a single 1 value!"
+            raise ValueError(msg)
+        if data.shape != (4, 9):
+            msg = "In order to initialize from array, data must have shape (4, 9)!"
+            raise ValueError(msg)
+        self._from_int(np.where(data.flatten())[0][0])
 
-    def __repr__(self):
-        return self.__str__()
+    def _from_int(self, index: int):
+        """Initialize from integer index
 
-    def _repr_svg_(self):
-        return self._svg
+        index should be an integer between 0 and 33 (inclusive):
 
-    def __eq__(self, other):
-        return (self._data == other._data).all()
+        - 0-8: 1 through 9 crack
+        - 9-17: 1 through 9 boo
+        - 18-26: 1 through 9 dot
+        - 27-33: east wind, south wind, west wind, north wind, white dragon, green
+                 dragon, red dragon
 
-    @classmethod
-    def from_data(cls, data: np.ndarray):
-        suit, val = np.where(data)
+        """
+        if index < 0 or index > 33:
+            msg = "index must lie between 0 and 33, inclusive"
+            raise ValueError(msg)
+        suit = index // 9
+        val = index % 9
         if suit == 3:
-            return cls.__init__(DATA_IDX_MAPPER_REV[val[0]])
-        suit = DATA_SUIT_MAPPER_REV[suit[0]]
-        return cls(f"{val[0]+1}{suit[0]}")
+            self._from_str(DATA_IDX_MAPPER_REV[val])
+        else:
+            suit = DATA_SUIT_MAPPER_REV[suit]
+            self._from_str(f"{val+1}{suit[0]}")

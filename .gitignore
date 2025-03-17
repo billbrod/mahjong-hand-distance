@@ -166,3 +166,5 @@ src/mahjong_hand_distance/version.py
 
 # gets created during install
 build/
+
+*ipynb
